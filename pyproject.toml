@@ -1,0 +1,27 @@
+[tool.poetry]
+name = "finalproject-tkachenko-m25-555"
+version = "0.1.0"
+description = "ValutaTrade Hub - Trading platform for fiat and crypto currencies"
+authors = ["Sonya Tkachenko <sonyatkachenko2003@mail.ru>"]
+readme = "README.md"
+packages = [
+    { include = "valutatrade_hub" },
+    { include = "main.py" }
+]
+
+[tool.poetry.dependencies]
+python = "^3.8"
+requests = "^2.25.0"
+python-dateutil = "^2.8.0"
+
+[tool.poetry.dev-dependencies]
+pytest = "^6.0"
+black = "^21.0"
+flake8 = "^3.9"
+
+[tool.poetry.scripts]
+valutatrade = "main:main"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"

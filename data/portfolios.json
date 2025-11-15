@@ -1,0 +1,11 @@
+[
+  {
+    "user_id": 1,
+    "wallets": {
+      "BTC": {
+        "currency_code": "BTC",
+        "balance": 0.05
+      }
+    }
+  }
+]
