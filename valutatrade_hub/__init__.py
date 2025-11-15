@@ -1,6 +1,3 @@
-"""
-ValutaTrade Hub - Trading platform for fiat and crypto currencies
-"""
+from .decorators import log_action
 
-__version__ = "1.0.0"
-__author__ = "Sonya Tkachenko"
+__all__ = ["log_action"]

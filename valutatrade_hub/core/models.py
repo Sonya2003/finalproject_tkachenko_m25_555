@@ -1,3 +1,4 @@
+from .exceptions import InsufficientFundsError
 import hashlib
 import datetime
 import secrets
@@ -47,7 +48,7 @@ class User:
     def registration_date(self) -> datetime.datetime:
         return self.__registration_date
     
-    # Методы класса
+    
     def get_user_info(self) -> Dict[str, Any]:
         """Возвращает информацию о пользователе (без пароля)"""
         return {
@@ -132,7 +133,11 @@ class Wallet:
             raise ValueError("Сумма снятия должна быть положительным числом")
         
         if amount > self.balance:
-            return False  # Недостаточно средств
+            raise InsufficientFundsError(
+                available=self.balance,
+                required=amount,
+                code=self.currency_code
+            )  
         
         self.balance -= amount
         return True

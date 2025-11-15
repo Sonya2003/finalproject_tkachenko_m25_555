@@ -3,9 +3,8 @@ import sys
 import os
 import getpass
 from typing import Optional
-from ..core.usecases import UserManager, PortfolioManager, ExchangeRateService
-from ..core.utils import validate_currency_code, validate_amount, format_currency_amount
-
+from ..core.exceptions import InsufficientFundsError, CurrencyNotFoundError, ApiRequestError
+from ..core.currencies import get_currency, get_all_currencies
 class CLIInterface:
     def __init__(self):
         self.user_manager = UserManager()
@@ -230,42 +229,24 @@ class CLIInterface:
         currency = args.currency.upper()
         amount = args.amount
         
-        if not validate_currency_code(currency):
-            print("Ошибка: Некорректный код валюты")
-            return
-        
-        if not validate_amount(amount):
-            print("Ошибка: 'amount' должен быть положительным числом")
-            return
-        
         try:
-            # Получаем курс для отображения стоимости
-            rate_data = self.exchange_service.get_rate('USD', currency)
-            if not rate_data:
-                print(f"Ошибка: Не удалось получить курс для USD-{currency}")
-                return
-            
-            rate = rate_data['rate']
-            cost_usd = amount * (1/rate) if rate != 0 else 0
-            
-            # Добавляем валюту в портфель
-            portfolio = self.portfolio_manager.get_user_portfolio(self.current_user.user_id)
-            wallet = portfolio.get_wallet(currency)
-            
-            if wallet:
-                old_balance = wallet.balance
-                self.portfolio_manager.deposit_to_wallet(self.current_user.user_id, currency, amount)
-                new_balance = wallet.balance
-            else:
-                old_balance = 0.0
-                self.portfolio_manager.deposit_to_wallet(self.current_user.user_id, currency, amount)
-                new_balance = amount
-            
-            print(f"Покупка выполнена: {format_currency_amount(amount, currency)} {currency} по курсу {rate:.6f} USD/{currency}")
+            result = self.portfolio_manager.buy_currency(
+                self.current_user.user_id, currency, amount
+            )
+        
+            print(f"Покупка выполнена: {format_currency_amount(amount, currency)} {currency} по курсу {result['rate']:.6f} USD/{currency}")
             print(f"Изменения в портфеле:")
-            print(f"  - {currency}: было {format_currency_amount(old_balance, currency)} → стало {format_currency_amount(new_balance, currency)}")
-            print(f"Оценочная стоимость покупки: {format_currency_amount(cost_usd, 'USD')} USD")
-            
+            print(f"  - {currency}: было {format_currency_amount(result['old_balance'], currency)} → стало {format_currency_amount(result['new_balance'], currency)}")
+            print(f"Оценочная стоимость покупки: {format_currency_amount(result['cost_usd'], 'USD')} USD")
+        
+        except CurrencyNotFoundError as e:
+            print(f"Ошибка: {e}")
+            self._show_currency_help()
+        except InsufficientFundsError as e:
+            print(f"Ошибка: {e}")
+        except ApiRequestError as e:
+            print(f"Ошибка: {e}")
+            print("Повторите попытку позже или проверьте подключение к сети")
         except ValueError as e:
             print(f"Ошибка: {e}")
     
@@ -278,81 +259,63 @@ class CLIInterface:
         currency = args.currency.upper()
         amount = args.amount
         
-        if not validate_currency_code(currency):
-            print("Ошибка: Некорректный код валюты")
-            return
-        
-        if not validate_amount(amount):
-            print("Ошибка: 'amount' должен быть положительным числом")
-            return
-        
         try:
-            # Проверяем наличие кошелька и достаточность средств
-            portfolio = self.portfolio_manager.get_user_portfolio(self.current_user.user_id)
-            wallet = portfolio.get_wallet(currency)
-            
-            if not wallet:
-                print(f"Ошибка: У вас нет кошелька '{currency}'. Добавьте валюту: она создаётся автоматически при покупке.")
-                return
-            
-            if wallet.balance < amount:
-                print(f"Ошибка: Недостаточно средств: доступно {format_currency_amount(wallet.balance, currency)} {currency}, требуется {format_currency_amount(amount, currency)} {currency}")
-                return
-            
-            # Получаем курс для отображения выручки
-            rate_data = self.exchange_service.get_rate(currency, 'USD')
-            if not rate_data:
-                print(f"Ошибка: Не удалось получить курс для {currency}-USD")
-                return
-            
-            rate = rate_data['rate']
-            revenue_usd = amount * rate
-            
-            old_balance = wallet.balance
-            success = self.portfolio_manager.withdraw_from_wallet(self.current_user.user_id, currency, amount)
-            
-            if success:
-                new_balance = wallet.balance
-                print(f"Продажа выполнена: {format_currency_amount(amount, currency)} {currency} по курсу {rate:.2f} {currency}/USD")
-                print(f"Изменения в портфеле:")
-                print(f"  - {currency}: было {format_currency_amount(old_balance, currency)} → стало {format_currency_amount(new_balance, currency)}")
-                print(f"Оценочная выручка: {format_currency_amount(revenue_usd, 'USD')} USD")
-            else:
-                print("Ошибка при выполнении операции продажи")
-            
+            result = self.portfolio_manager.sell_currency(
+                self.current_user.user_id, currency, amount
+            )
+            print(f"Продажа выполнена: {format_currency_amount(amount, currency)} {currency} по курсу {result['rate']:.2f} {currency}/USD")
+            print(f"Изменения в портфеле:")
+            print(f"  - {currency}: было {format_currency_amount(result['old_balance'], currency)} → стало {format_currency_amount(result['new_balance'], currency)}")
+            print(f"Оценочная выручка: {format_currency_amount(result['revenue_usd'], 'USD')} USD")
+        except CurrencyNotFoundError as e:
+            print(f"Ошибка: {e}")
+            self._show_currency_help()
+        except InsufficientFundsError as e:
+            print(f"Ошибка: {e}")
+        except ApiRequestError as e:
+            print(f"Ошибка: {e}")
+            print("Повторите попытку позже или проверьте подключение к сети")
         except ValueError as e:
             print(f"Ошибка: {e}")
-    
+    def _show_currency_help(self):
+        """Показывает справку по доступным валютам"""
+        print("\nДоступные валюты:")
+        currencies = get_all_currencies()
+        for code, currency in currencies.items():
+            print(f"  - {code}: {currency.name}")
+        print("Используйте 'get-rate --from USD --to CODE' для проверки курса")
+
     def get_rate(self, args):
         """Команда get-rate"""
         from_currency = args.fr.upper()
         to_currency = args.to.upper()
         
-        if not validate_currency_code(from_currency) or not validate_currency_code(to_currency):
-            print("Ошибка: Некорректный код валюты")
-            return
-        
-        rate_data = self.exchange_service.get_rate(from_currency, to_currency)
-        
-        if not rate_data:
-            print(f"Ошибка: Курс {from_currency}={to_currency} недоступен. Повторите попытку позже.")
-            return
-        
-        rate = rate_data['rate']
-        updated_at = rate_data['updated_at']
-        
-        # Конвертируем время в читаемый формат
-        from datetime import datetime
-        updated_time = datetime.fromisoformat(updated_at).strftime("%Y-%m-%d %H:%M:%S")
-        
-        print(f"Курс {from_currency}={to_currency}: {rate:.8f} (обновлено: {updated_time})")
-        
-        # Показываем обратный курс
-        reverse_rate_data = self.exchange_service.get_rate(to_currency, from_currency)
-        if reverse_rate_data:
-            reverse_rate = reverse_rate_data['rate']
-            print(f"Обратный курс {to_currency}={from_currency}: {reverse_rate:.8f}")
-    
+        try:
+            from_curr_obj = get_currency(from_currency)
+            to_curr_obj = get_currency(to_currency)
+            rate_data = self.exchange_service.get_rate(from_currency, to_currency)
+            if not rate_data:
+               raise ApiRequestError("курс недоступен")
+            rate = rate_data['rate']
+            updated_at = rate_data['updated_at']
+            from datetime import datetime
+            updated_time = datetime.fromisoformat(updated_at).strftime("%Y-%m-%d %H:%M:%S")
+            print(f"Курс {from_currency}={to_currency}: {rate:.8f} (обновлено: {updated_time})")
+            print(f"Информация о валютах:")
+            print(f"  - {from_curr_obj.get_display_info()}")
+            print(f"  - {to_curr_obj.get_display_info()}")
+            reverse_rate_data = self.exchange_service.get_rate(to_currency, from_currency)
+            if reverse_rate_data:
+               reverse_rate = reverse_rate_data['rate']
+               print(f"Обратный курс {to_currency}={from_currency}: {reverse_rate:.8f}")
+        except CurrencyNotFoundError as e:
+            print(f"Ошибка: {e}")
+            self._show_currency_help()
+        except ApiRequestError as e:
+            print(f"Ошибка: {e}")
+            print("Повторите попытку позже или проверьте подключение к сети")
+ 
+   
     def run(self):
         """Запускает CLI интерфейс"""
         parser = argparse.ArgumentParser(description='ValutaTrade Hub - Trading Platform')

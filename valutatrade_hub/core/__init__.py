@@ -1,12 +1,10 @@
-
 from .models import User, Wallet, Portfolio
-from .usecases import UserManager, PortfolioManager, ExchangeRateService
+from .currencies import Currency, FiatCurrency, CryptoCurrency, get_currency, get_all_currencies
+from .exceptions import ValutaTradeError, InsufficientFundsError, CurrencyNotFoundError, ApiRequestError
 
 __all__ = [
-    "User", 
-    "Wallet", 
-    "Portfolio", 
-    "UserManager", 
-    "PortfolioManager", 
-    "ExchangeRateService"
+    "User", "Wallet", "Portfolio", 
+    "UserManager", "PortfolioManager", "ExchangeRateService",
+    "Currency", "FiatCurrency", "CryptoCurrency", "get_currency", "get_all_currencies",
+    "ValutaTradeError", "InsufficientFundsError", "CurrencyNotFoundError", "ApiRequestError",
 ]
