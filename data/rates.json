@@ -4,7 +4,88 @@
     "updated_at": "2025-11-15T18:22:41.073913"
   },
   "BTC_USD": {
-    "rate": 59337.21,
-    "updated_at": "2025-11-15T18:23:00.755695"
+    "rate": 95522.0,
+    "updated_at": "2025-11-16T17:45:53.522168",
+    "source": "coingecko"
+  },
+  "ETH_USD": {
+    "rate": 3169.77,
+    "updated_at": "2025-11-16T17:45:53.522168",
+    "source": "coingecko"
+  },
+  "SOL_USD": {
+    "rate": 140.4,
+    "updated_at": "2025-11-16T17:45:53.522168",
+    "source": "coingecko"
+  },
+  "ADA_USD": {
+    "rate": 0.493503,
+    "updated_at": "2025-11-16T17:45:53.522168",
+    "source": "coingecko"
+  },
+  "DOT_USD": {
+    "rate": 2.83,
+    "updated_at": "2025-11-16T17:45:53.522168",
+    "source": "coingecko"
+  },
+  "BNB_USD": {
+    "rate": 937.38,
+    "updated_at": "2025-11-16T17:45:53.522168",
+    "source": "coingecko"
+  },
+  "XRP_USD": {
+    "rate": 2.23,
+    "updated_at": "2025-11-16T17:45:53.522168",
+    "source": "coingecko"
+  },
+  "DOGE_USD": {
+    "rate": 0.161708,
+    "updated_at": "2025-11-16T17:45:53.522168",
+    "source": "coingecko"
+  },
+  "EUR_USD": {
+    "rate": 0.8605,
+    "updated_at": "2025-11-16T17:44:04.562874",
+    "source": "exchangerate"
+  },
+  "GBP_USD": {
+    "rate": 0.7596,
+    "updated_at": "2025-11-16T17:44:04.562874",
+    "source": "exchangerate"
+  },
+  "RUB_USD": {
+    "rate": 80.8119,
+    "updated_at": "2025-11-16T17:44:04.562874",
+    "source": "exchangerate"
+  },
+  "JPY_USD": {
+    "rate": 154.4657,
+    "updated_at": "2025-11-16T17:44:04.562874",
+    "source": "exchangerate"
+  },
+  "CNY_USD": {
+    "rate": 7.1062,
+    "updated_at": "2025-11-16T17:44:04.562874",
+    "source": "exchangerate"
+  },
+  "CHF_USD": {
+    "rate": 0.7934,
+    "updated_at": "2025-11-16T17:44:04.562874",
+    "source": "exchangerate"
+  },
+  "CAD_USD": {
+    "rate": 1.402,
+    "updated_at": "2025-11-16T17:44:04.562874",
+    "source": "exchangerate"
+  },
+  "AUD_USD": {
+    "rate": 1.5301,
+    "updated_at": "2025-11-16T17:44:04.562874",
+    "source": "exchangerate"
+  },
+  "USD_USD": {
+    "rate": 1.0,
+    "updated_at": "2025-11-16T17:44:04.562874",
+    "source": "exchangerate"
   }
 }

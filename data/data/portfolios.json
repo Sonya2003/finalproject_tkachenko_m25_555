@@ -4,7 +4,11 @@
     "wallets": {
       "USD": {
         "currency_code": "USD",
-        "balance": 2.0
+        "balance": 1.0
+      },
+      "BTC": {
+        "currency_code": "BTC",
+        "balance": 4.0
       }
     }
   }

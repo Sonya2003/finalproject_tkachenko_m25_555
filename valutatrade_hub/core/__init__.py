@@ -4,7 +4,7 @@ from .exceptions import ValutaTradeError, InsufficientFundsError, CurrencyNotFou
 from .usecases import UserManager, PortfolioManager, ExchangeRateService
 
 __all__ = [
-    "User", "Wallet", "Portfolio", 
+    "User", "Wallet", "Portfolio",
     "UserManager", "PortfolioManager", "ExchangeRateService",
     "Currency", "FiatCurrency", "CryptoCurrency", "get_currency", "get_all_currencies",
     "ValutaTradeError", "InsufficientFundsError", "CurrencyNotFoundError", "ApiRequestError",
