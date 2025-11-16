@@ -3,8 +3,10 @@ import sys
 import os
 import getpass
 from typing import Optional
+from ..core.utils import validate_currency_code, validate_amount, format_currency_amount
 from ..core.exceptions import InsufficientFundsError, CurrencyNotFoundError, ApiRequestError
 from ..core.currencies import get_currency, get_all_currencies
+from valutatrade_hub.core import UserManager, PortfolioManager, ExchangeRateService
 class CLIInterface:
     def __init__(self):
         self.user_manager = UserManager()

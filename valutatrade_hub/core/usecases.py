@@ -7,10 +7,6 @@ from .utils import load_json_data, save_json_data, get_next_id, validate_currenc
 from .currencies import get_currency, CurrencyNotFoundError
 from .exceptions import InsufficientFundsError, ApiRequestError
 
-from valutatrade_hub.decorators import log_action
-from valutatrade_hub.infra.settings import settings
-from valutatrade_hub.infra.database import db
-
 class UserManager:
     def __init__(self, data_dir: str = "data"):
         self.data_dir = data_dir
@@ -19,6 +15,7 @@ class UserManager:
     
     def _load_users(self):
         """Загружает пользователей из файла"""
+        from valutatrade_hub.infra.database import db
         self.users = {}
         users_data = db.read_data(self.users_file)
         
@@ -28,11 +25,13 @@ class UserManager:
     
     def _save_users(self):
         """Сохраняет пользователей в файл"""
+        from valutatrade_hub.infra.database import db
         users_data = [user.to_dict() for user in self.users.values()]
-        save_json_data(self.users_file, users_data)
+        db.write_data(self.users_file, users_data)
     
     def register_user(self, username: str, password: str) -> User:
         """Регистрирует нового пользователя"""
+        from valutatrade_hub.infra.database import db
         # Проверяем уникальность имени
         for user in self.users.values():
             if user.username == username:
@@ -64,14 +63,16 @@ class UserManager:
 
 class PortfolioManager:
     def __init__(self, data_dir: str = None):
+        from valutatrade_hub.infra.settings import settings
         self.data_dir = data_dir or settings.get('data_dir', 'data')
         self.portfolios_file = os.path.join(data_dir, "portfolios.json")
         self._load_portfolios()
     
     def _load_portfolios(self):
         """Загружает портфели из файла"""
+        from valutatrade_hub.infra.database import db
         self.portfolios = {}
-        portfolios_data = load_json_data(self.portfolios_file)
+        portfolios_data = db.read_data(self.portfolios_file)
         
         for portfolio_data in portfolios_data:
             portfolio = Portfolio.from_dict(portfolio_data)
@@ -79,8 +80,9 @@ class PortfolioManager:
     
     def _save_portfolios(self):
         """Сохраняет портфели в файл"""
+        from valutatrade_hub.infra.database import db
         portfolios_data = [portfolio.to_dict() for portfolio in self.portfolios.values()]
-        save_json_data(self.portfolios_file, portfolios_data)
+        db.write_data(self.portfolios_file, portfolios_data)
     
     def get_user_portfolio(self, user_id: int) -> Portfolio:
         """Возвращает портфель пользователя"""
@@ -138,84 +140,93 @@ class PortfolioManager:
         portfolio = self.get_user_portfolio(user_id)
         return {currency: wallet.balance for currency, wallet in portfolio.wallets.items()}
 
-    @log_action("BUY", verbose=True)
+    
     def buy_currency(self, user_id: int, currency_code: str, amount: float) -> Dict[str, Any]:
-        try:
-            currency = get_currency(currency_code)
-        except CurrencyNotFoundError as e:
-            raise e
-        if not validate_amount(amount):
-            raise ValueError("'amount' должен быть положительным числом")
-        rate_data = self.exchange_service.get_rate('USD', currency_code)
-        if not rate_data:
-            raise ApiRequestError(f"не удалось получить курс для USD-{currency_code}")
+        from valutatrade_hub.decorators import log_action
+        @log_action("BUY", verbose=True)
+        def _buy_operation():
+            try:
+                currency = get_currency(currency_code)
+            except CurrencyNotFoundError as e:
+                raise e
+            if not validate_amount(amount):
+                raise ValueError("'amount' должен быть положительным числом")
+            rate_data = self.exchange_service.get_rate('USD', currency_code)
+            if not rate_data:
+                raise ApiRequestError(f"не удалось получить курс для USD-{currency_code}")
         
-        rate = rate_data['rate']
-        cost_usd = amount * (1/rate) if rate != 0 else 0
-        portfolio = self.get_user_portfolio(user_id)
-        wallet = portfolio.get_wallet(currency_code)
+            rate = rate_data['rate']
+            cost_usd = amount * (1/rate) if rate != 0 else 0
+            portfolio = self.get_user_portfolio(user_id)
+            wallet = portfolio.get_wallet(currency_code)
         
-        if wallet:
-            old_balance = wallet.balance
-            self.deposit_to_wallet(user_id, currency_code, amount)
-            new_balance = wallet.balance
-        else:
-            old_balance = 0.0
-            self.deposit_to_wallet(user_id, currency_code, amount)
-            new_balance = amount
-        return {
-            "currency": currency_code,
-            "amount": amount,
-            "rate": rate,
-            "cost_usd": cost_usd,
-            "old_balance": old_balance,
-            "new_balance": new_balance
-        }
-        
-    @log_action("SELL", verbose=True)
+            if wallet:
+                old_balance = wallet.balance
+                self.deposit_to_wallet(user_id, currency_code, amount)
+                new_balance = wallet.balance
+            else:
+                old_balance = 0.0
+                self.deposit_to_wallet(user_id, currency_code, amount)
+                new_balance = amount
+            return {
+                "currency": currency_code,
+                "amount": amount,
+                "rate": rate,
+                "cost_usd": cost_usd,
+                "old_balance": old_balance,
+                "new_balance": new_balance
+            }
+        return _buy_operation()
+
+    
     def sell_currency(self, user_id: int, currency_code: str, amount: float) -> Dict[str, Any]:
         """Продажа валюты с валидацией и логированием"""
-        try:
-            currency = get_currency(currency_code)
-        except CurrencyNotFoundError as e:
-            raise e
-        if not validate_amount(amount):
-            raise ValueError("'amount' должен быть положительным числом")
-        portfolio = self.get_user_portfolio(user_id)
-        wallet = portfolio.get_wallet(currency_code)
+        from valutatrade_hub.decorators import log_action
+        @log_action("SELL", verbose=True)
+        def _sell_operation():
+            try:
+                currency = get_currency(currency_code)
+            except CurrencyNotFoundError as e:
+                raise e
+            if not validate_amount(amount):
+                raise ValueError("'amount' должен быть положительным числом")
+            portfolio = self.get_user_portfolio(user_id)
+            wallet = portfolio.get_wallet(currency_code)
         
-        if not wallet:
-            raise CurrencyNotFoundError(f"У вас нет кошелька '{currency_code}'")
+            if not wallet:
+                raise CurrencyNotFoundError(f"У вас нет кошелька '{currency_code}'")
         
-        if wallet.balance < amount:
-            raise InsufficientFundsError(
-                available=wallet.balance,
-                required=amount,
-                code=currency_code
-            )
-        rate_data = self.exchange_service.get_rate(currency_code, 'USD')
-        if not rate_data:
-            raise ApiRequestError(f"не удалось получить курс для {currency_code}-USD")
+            if wallet.balance < amount:
+                raise InsufficientFundsError(
+                    available=wallet.balance,
+                    required=amount,
+                    code=currency_code
+                )
+            rate_data = self.exchange_service.get_rate(currency_code, 'USD')
+            if not rate_data:
+                raise ApiRequestError(f"не удалось получить курс для {currency_code}-USD")
         
-        rate = rate_data['rate']
-        revenue_usd = amount * rate
-        old_balance = wallet.balance
-        success = self.withdraw_from_wallet(user_id, currency_code, amount)
+            rate = rate_data['rate']
+            revenue_usd = amount * rate
+            old_balance = wallet.balance
+            success = self.withdraw_from_wallet(user_id, currency_code, amount)
         
-        if not success:
-            raise Exception("Ошибка при выполнении операции продажи")
+            if not success:
+                raise Exception("Ошибка при выполнении операции продажи")
         
-        new_balance = wallet.balance
+            new_balance = wallet.balance
         
-        return {
-            "currency": currency_code,
-            "amount": amount,
-            "rate": rate,
-            "revenue_usd": revenue_usd,
-            "old_balance": old_balance,
-            "new_balance": new_balance
-        }
+            return {
+                "currency": currency_code,
+                "amount": amount,
+                "rate": rate,
+                "revenue_usd": revenue_usd,
+                "old_balance": old_balance,
+                "new_balance": new_balance
+            }
+        return _sell_operation()
     def __init__(self, data_dir: str = None):
+        from valutatrade_hub.infra.settings import settings
         self.data_dir = data_dir or settings.get('data_dir', 'data')
         self.portfolios_file = os.path.join(self.data_dir, "portfolios.json")
         self.exchange_service = ExchangeRateService(self.data_dir)
@@ -223,6 +234,7 @@ class PortfolioManager:
 
 class ExchangeRateService:
     def __init__(self, data_dir: str = None):
+        from valutatrade_hub.infra.settings import settings
         self.data_dir = data_dir or settings.get('data_dir', 'data')
         self.rates_file = os.path.join(self.data_dir, "rates.json")
         self.rates_ttl = settings.get('rates_ttl_seconds', 300)
@@ -230,7 +242,8 @@ class ExchangeRateService:
     
     def _load_rates(self):
         """Загружает курсы из файла"""
-        rates_data = load_json_data(self.rates_file)
+        from valutatrade_hub.infra.database import db
+        rates_data = db.read_data(self.rates_file)
         if isinstance(rates_data, list):
             
             self.rates = {}
@@ -244,7 +257,8 @@ class ExchangeRateService:
     
     def _save_rates(self):
         """Сохраняет курсы в файл"""
-        save_json_data(self.rates_file, self.rates)
+        from valutatrade_hub.infra.database import db
+        db.write_data(self.rates_file, self.rates)
     
     def get_rate(self, from_currency: str, to_currency: str) -> Optional[Dict[str, Any]]:
         """Получает курс между двумя валютами"""
